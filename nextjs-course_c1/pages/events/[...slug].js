@@ -1,19 +1,41 @@
 import { useRouter } from "next/router";
-import { getFilteredEvents } from "../../dummy-data";
+import { getFilteredEvents } from "../../helpers/api-util";
 import EventList from "../../components/events/event-list";
 import ResultTitle from "../../components/events/results-title";
 import { Fragment } from "react";
 import Button from "../../components/ui/button";
 import ErrorAlert from "../../components/ui/error-alert";
 
-function FilteredEventsPage() {
-  const router = useRouter();
+function FilteredEventsPage(props) {
+  const { events, dates, hasError } = props;
 
-  const filterdData = router.query.slug;
-
-  if (!filterdData) {
-    return <p className="center">Loading...</p>;
+  if (hasError) {
+    return <div>error</div>;
   }
+
+  // const router = useRouter();
+  // const filterdData = router.query.slug;
+  // if (!filterdData) {
+  //   return <p className="center">Loading...</p>;
+  // }
+
+  const filterEvents = events;
+  const date = new Date(dates.year, dates.month - 1);
+
+  return (
+    <div>
+      <ResultTitle date={date} />
+      <EventList items={filterEvents}></EventList>
+    </div>
+  );
+}
+
+export default FilteredEventsPage;
+
+export async function getServerSideProps(context) {
+  const { params } = context;
+
+  const filterdData = params.slug;
 
   const year = +filterdData[0];
   const month = +filterdData[1];
@@ -26,38 +48,30 @@ function FilteredEventsPage() {
     month < 1 ||
     month > 12
   ) {
-    return (
-      <Fragment>
-        <ErrorAlert>
-          <p>검색 조건에 오류가 있습니다.</p>
-        </ErrorAlert>
-        <div className="center">
-          <Button link="/events">Show All Events</Button>
-        </div>
-      </Fragment>
-    );
+    return {
+      // 1. 404 페이지
+      // notFound: true,
+
+      // 2. 에러 페이지로 이동시키기
+      // redirect: {
+      //   destination: "/error",
+      // },
+
+      props: {
+        hasError: true,
+      },
+    };
   }
 
-  const filterEvents = getFilteredEvents({ year: year, month: month });
+  const filterEvents = await getFilteredEvents({ year: year, month: month });
 
-  if (!filterEvents || filterEvents.length === 0) {
-    return (
-      <Fragment>
-        <p>조회 결과가 없습니다.</p>
-        <div className="center">
-          <Button link="/events">Show All Events</Button>
-        </div>
-      </Fragment>
-    );
-  }
-
-  const date = new Date(year, month - 1);
-  return (
-    <div>
-      <ResultTitle date={date} />
-      <EventList items={filterEvents}></EventList>
-    </div>
-  );
+  return {
+    props: {
+      events: filterEvents,
+      dates: {
+        year: year,
+        month: month,
+      },
+    },
+  };
 }
-
-export default FilteredEventsPage;
